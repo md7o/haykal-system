@@ -52,7 +52,6 @@ describe('UserService', () => {
         updatedAt: new Date(),
       };
 
-      // Mock both create and save methods
       mockUserRepository.create.mockReturnValue(mockUser);
       mockUserRepository.save.mockResolvedValue(mockUser);
 
@@ -66,17 +65,15 @@ describe('UserService', () => {
     it('should reject email without @ symbol', async () => {
       const invalidDto: CreateUserDto = {
         username: 'newuser',
-        email: 'invalid-email.com', // ❌ Missing @
+        email: 'invalid-email.com',
         password: 'password123',
       };
 
-      // The service should throw before calling repository
       mockUserRepository.create.mockImplementation();
       mockUserRepository.save.mockImplementation();
 
       await expect(service.create(invalidDto)).rejects.toThrow();
 
-      // Verify repository methods were NOT called
       expect(mockUserRepository.create).not.toHaveBeenCalled();
       expect(mockUserRepository.save).not.toHaveBeenCalled();
     });

@@ -34,6 +34,6 @@ export class User {
   @Column({ type: 'timestamp with time zone' })
   created_at: Date;
 
-  @Column()
+  @Column({ type: 'timestamp with time zone' })
   updated_at: Date;
 }
