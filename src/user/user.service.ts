@@ -23,6 +23,18 @@ export class UserService {
   async findOneById(id: string): Promise<User | null> {
     return await this.usersReposetory.findOne({ where: { id } });
   }
+  async findByEmail(email: string): Promise<User | null> {
+    return await this.usersReposetory.findOne({ where: { email } });
+  }
+
+  async findByUsernameOrEmail(
+    username: string,
+    email: string,
+  ): Promise<User | null> {
+    return await this.usersReposetory.findOne({
+      where: [{ username }, { email }],
+    });
+  }
 
   async update(id: string): Promise<User> {
     const user = await this.findOneById(id);
