@@ -1,0 +1,3 @@
+- AppModule > table synchronize
+- main > CORS
+- VerificationService and MailService > nodemailer.createTransport

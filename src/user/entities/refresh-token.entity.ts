@@ -14,7 +14,7 @@ export class RefreshToken {
   @Column({ nullable: true })
   deviceInfo: string;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ default: () => 'CURRENT_TIMESTAMP', nullable: false })
   expiresAt: Date;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })

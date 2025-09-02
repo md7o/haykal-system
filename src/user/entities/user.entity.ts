@@ -23,24 +23,21 @@ export class User {
   role: UserRole;
 
   @Column({ default: false })
-  is_verified: boolean;
-
-  @Column({ default: false })
-  is_banned: boolean;
+  isBanned: boolean;
 
   @Column({ type: 'text', nullable: true })
-  banned_reason?: string;
+  bannedReason?: string;
 
   @Column({
     type: 'timestamp with time zone',
     default: () => 'CURRENT_TIMESTAMP',
   })
-  created_at: Date;
+  createdAt: Date;
 
   @Column({
     type: 'timestamp with time zone',
     default: () => 'CURRENT_TIMESTAMP',
     onUpdate: 'CURRENT_TIMESTAMP',
   })
-  updated_at: Date;
+  updatedAt: Date;
 }

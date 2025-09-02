@@ -1,3 +1,4 @@
+import { Request } from 'express';
 // ---------- DTOs ----------
 export interface SignInDto {
   email: string;

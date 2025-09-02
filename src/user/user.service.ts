@@ -16,6 +16,10 @@ export class UserService {
     return this.usersReposetory.save(user);
   }
 
+  async save(user: User): Promise<User> {
+    return await this.usersReposetory.save(user);
+  }
+
   async findAll(): Promise<User[]> {
     return await this.usersReposetory.find();
   }
