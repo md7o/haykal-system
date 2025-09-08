@@ -19,4 +19,8 @@ export class RefreshToken {
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
+
+  // When the corresponding access token expires; used to decide rotation time
+  @Column({ type: 'bigint', nullable: true })
+  accessTokenExpiresAt: string | null;
 }

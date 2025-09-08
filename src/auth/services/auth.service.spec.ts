@@ -6,6 +6,11 @@ import { RefreshTokenService } from './refresh-token.service';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { UserRole } from 'src/enums/user-role';
 import * as bcrypt from 'bcrypt';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { PasswordReset } from 'src/user/entities/password-reset.entity';
+import { ResetPasswordService } from './rest-password.service';
+import { PendingRegistrationService } from './pending-registration.service';
+import { VerificationService } from './verification.service';
 
 jest.mock('bcrypt');
 
@@ -26,6 +31,35 @@ describe('AuthService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        {
+          provide: getRepositoryToken(PasswordReset),
+          useValue: {
+            create: jest.fn(),
+            save: jest.fn(),
+            findOne: jest.fn(),
+            delete: jest.fn(),
+          },
+        },
+        {
+          provide: ResetPasswordService,
+          useValue: {
+            sendOtpEmail: jest.fn(),
+          },
+        },
+        {
+          provide: PendingRegistrationService,
+          useValue: {
+            createPendingRegistration: jest.fn(),
+            findValidCode: jest.fn(),
+            deletePending: jest.fn(),
+          },
+        },
+        {
+          provide: VerificationService,
+          useValue: {
+            sendOtpVerification: jest.fn(),
+          },
+        },
         AuthService,
         {
           provide: UserService,
@@ -41,6 +75,7 @@ describe('AuthService', () => {
           useValue: {
             sign: jest.fn(),
             verify: jest.fn(),
+            decode: jest.fn(),
           },
         },
         {
@@ -107,13 +142,13 @@ describe('AuthService', () => {
       (userService.findByUsernameOrEmail as jest.Mock).mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
       // Mock pendingService and verificationService as needed
-      authService['pendingService'] = {
+      (authService as any)['pendingService'] = {
         createPendingRegistration: jest.fn().mockResolvedValue(true),
         findValidCode: jest.fn(),
         deletePending: jest.fn(),
         repo: {},
       };
-      authService['verificationService'] = {
+      (authService as any)['verificationService'] = {
         sendOtpVerification: jest.fn().mockResolvedValue(true),
         logger: { log: jest.fn(), error: jest.fn() },
         emailApi: {},
@@ -156,6 +191,9 @@ describe('AuthService', () => {
       (userService.findOneById as jest.Mock).mockResolvedValue(mockUser);
       (jwtService.sign as jest.Mock).mockReturnValueOnce('access-token');
       (jwtService.sign as jest.Mock).mockReturnValueOnce('refresh-token');
+      (jwtService.decode as jest.Mock).mockReturnValue({
+        exp: Math.floor((Date.now() + 10_000) / 1000),
+      });
 
       const validDeviceInfo = {
         os: 'Windows',
@@ -184,10 +222,18 @@ describe('AuthService', () => {
         username: mockUser.username,
         role: mockUser.role,
         accessToken: 'access-token',
+        accessTokenExpiry: expect.any(Number),
         refreshToken: 'refresh-token',
       });
-      expect(() => refreshTokenService.revokeTokens(mockUser.id)).not.toThrow();
-      expect(() => refreshTokenService.saveToken({})).not.toThrow();
+      expect(refreshTokenService.revokeTokens).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+      expect(refreshTokenService.saveToken).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: mockUser.id,
+          token: 'refresh-token',
+        }),
+      );
     });
 
     it('should throw UnauthorizedException if invalid user', async () => {
@@ -220,18 +266,22 @@ describe('AuthService', () => {
   // ---------------------------
   describe('refreshTokens', () => {
     it('should rotate and return new tokens', async () => {
-      (jwtService.verify as jest.Mock).mockReturnValue({ userId: '1' });
-      (refreshTokenService.findToken as jest.Mock).mockResolvedValue(
-        'refresh-token',
-      );
+      (jwtService.verify as jest.Mock).mockReturnValue({ sub: '1' });
+      (refreshTokenService.findToken as jest.Mock).mockResolvedValue({
+        accessTokenExpiresAt: String(Date.now() - 1000),
+      });
       (userService.findOneById as jest.Mock).mockResolvedValue(mockUser);
       (jwtService.sign as jest.Mock).mockReturnValueOnce('new-access-token');
+      (jwtService.decode as jest.Mock).mockReturnValue({
+        exp: Math.floor((Date.now() + 10_000) / 1000),
+      });
       (jwtService.sign as jest.Mock).mockReturnValueOnce('new-refresh-token');
 
       const result = await authService.refreshTokens('refresh-token');
       expect(result).toEqual({
         accessToken: 'new-access-token',
         refreshToken: 'new-refresh-token',
+        accessTokenExpiry: expect.any(Number),
       });
     });
 
@@ -241,6 +291,18 @@ describe('AuthService', () => {
       });
 
       await expect(authService.refreshTokens('bad-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should reject rotation if access token not yet expired', async () => {
+      (jwtService.verify as jest.Mock).mockReturnValue({ sub: '1' });
+      (refreshTokenService.findToken as jest.Mock).mockResolvedValue({
+        accessTokenExpiresAt: String(Date.now() + 60_000),
+      });
+      (userService.findOneById as jest.Mock).mockResolvedValue(mockUser);
+
+      await expect(authService.refreshTokens('refresh-token')).rejects.toThrow(
         UnauthorizedException,
       );
     });

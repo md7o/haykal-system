@@ -1,25 +1,37 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  UseGuards,
-  Request,
-  Req,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, Req, UnauthorizedException, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthService } from './services/auth.service';
 import { PassportLocalGuard } from './guards/passport-local.guard';
 import { JwtAuthGuard } from './guards/auth.guard';
-import type {
-  RequestWithDevice,
-  SignUpDto,
-  SignInDto,
-} from './interfaces/auth-types';
+import type { RequestWithDevice, SignUpDto, SignInDto } from './interfaces/auth-types';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  /**
+   * Returns cookie options for refresh token
+   */
+  private getCookieOptions(): {
+    httpOnly: true;
+    secure: boolean;
+    sameSite: 'lax' | 'none';
+    path: string;
+    domain?: string;
+    maxAge: number;
+  } {
+    const isProd = process.env.NODE_ENV === 'production';
+    // In dev on http://localhost, use SameSite=Lax and Secure=false.
+    // In prod over HTTPS and potentially cross-site, use SameSite=None and Secure=true.
+    return {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      path: '/',
+      ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    };
+  }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
@@ -28,8 +40,21 @@ export class AuthController {
   }
 
   @Post('refresh')
-  refresh(@Body('refreshToken') refreshToken: string) {
-    return this.authService.refreshTokens(refreshToken);
+  async refresh(
+    @Req() req: RequestWithDevice,
+    @Body('refreshToken') refreshTokenFromBody: string | undefined,
+    @Res() res: Response,
+  ) {
+    // Prefer cookie, fall back to body for non-cookie clients (e.g., mobile)
+    const incomingRefreshToken = req.cookies?.['refreshToken'] || refreshTokenFromBody;
+
+    if (!incomingRefreshToken) throw new UnauthorizedException('No refresh token');
+
+    const { accessToken, refreshToken, accessTokenExpiry } = await this.authService.refreshTokens(incomingRefreshToken);
+
+    res.cookie('refreshToken', String(refreshToken), this.getCookieOptions());
+
+    return res.json({ accessToken, accessTokenExpiry });
   }
 
   @Post('request-signup')
@@ -41,16 +66,26 @@ export class AuthController {
   async verifySignup(@Body() body: { email: string; code: string }) {
     return this.authService.verifySignup(body.email, body.code);
   }
-
   @UseGuards(PassportLocalGuard)
   @Post('signin')
-  signIn(@Req() req: RequestWithDevice, @Body() input: SignInDto) {
-    return this.authService.signIn(input, req);
+  async signIn(@Req() req: RequestWithDevice, @Body() input: SignInDto, @Res() res: Response) {
+    const { accessToken, accessTokenExpiry, refreshToken } = await this.authService.signIn(input, req);
+    res.cookie('refreshToken', String(refreshToken), this.getCookieOptions());
+    res.json({ accessToken, accessTokenExpiry });
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
-  logout(@Body('userId') userId: string) {
+  logout(@Body('userId') userId: string, @Res({ passthrough: true }) res: Response) {
+    // Clear cookie using the same attributes to ensure deletion
+    const opts = this.getCookieOptions();
+    res.clearCookie('refreshToken', {
+      httpOnly: opts.httpOnly,
+      secure: opts.secure,
+      sameSite: opts.sameSite,
+      path: opts.path,
+      ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
+    });
     return this.authService.logout(userId);
   }
 
@@ -66,8 +101,9 @@ export class AuthController {
     @Body('password') password: string,
     @Body('confirmPassword') confirmPassword: string,
   ) {
-    if (password !== confirmPassword)
+    if (password !== confirmPassword) {
       throw new UnauthorizedException('Passwords do not match');
+    }
     return this.authService.resetPasswordWithCode(email, code, password);
   }
 }

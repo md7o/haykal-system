@@ -18,8 +18,6 @@ export class DeviceInfoMiddleware implements NestMiddleware {
       type: result.device.type || 'desktop',
     };
 
-    console.log('Device info:', req.deviceInfo);
-
     next();
   }
 }

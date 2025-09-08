@@ -16,6 +16,7 @@ export class RefreshTokenService {
     token: string,
     deviceInfo?: string,
     maxSessions = 3,
+    accessTokenExpiresAt?: number,
   ): Promise<RefreshToken> {
     const tokens = await this.refreshTokenRepository.find({
       where: { userId },
@@ -35,6 +36,9 @@ export class RefreshTokenService {
       userId,
       token: hashedToken,
       deviceInfo,
+      accessTokenExpiresAt: accessTokenExpiresAt
+        ? String(accessTokenExpiresAt)
+        : null,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
     return this.refreshTokenRepository.save(refreshToken);
@@ -70,8 +74,9 @@ export class RefreshTokenService {
     userId: string;
     token: string;
     deviceInfo?: string;
+    accessTokenExpiresAt?: number;
   }): Promise<void> {
-    const { userId, token, deviceInfo } = tokenData;
+    const { userId, token, deviceInfo, accessTokenExpiresAt } = tokenData;
 
     const hashedToken = await bcrypt.hash(token, 10);
 
@@ -79,6 +84,9 @@ export class RefreshTokenService {
       userId,
       token: hashedToken,
       deviceInfo,
+      accessTokenExpiresAt: accessTokenExpiresAt
+        ? String(accessTokenExpiresAt)
+        : null,
     });
 
     await this.refreshTokenRepository.save(refreshToken);

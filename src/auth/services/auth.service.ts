@@ -1,10 +1,19 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { LessThan, Repository } from 'typeorm';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+
 import { UserService } from 'src/user/user.service';
+import { UserRole } from 'src/enums/user-role';
+import { User } from 'src/user/entities/user.entity';
+import { PasswordReset } from 'src/user/entities/password-reset.entity';
+
+import { RefreshTokenService } from './refresh-token.service';
+import { ResetPasswordService } from './rest-password.service';
+import { PendingRegistrationService } from './pending-registration.service';
+import { VerificationService } from './verification.service';
+
 import type {
   SignInDto,
   SignUpDto,
@@ -13,38 +22,25 @@ import type {
   UserBase,
   RequestWithDevice,
 } from '../interfaces/auth-types';
-import * as bcrypt from 'bcrypt';
-import { JwtService } from '@nestjs/jwt';
-import { UserRole } from 'src/enums/user-role';
-import { RefreshTokenService } from './refresh-token.service';
-import { User } from 'src/user/entities/user.entity';
-import { PasswordReset } from 'src/user/entities/password-reset.entity';
-import { ResetPasswordService } from './rest-password.service';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { PendingRegistrationService } from './pending-registration.service';
-import { VerificationService } from './verification.service';
+import e from 'express';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(PasswordReset)
-    private passwordResetRepo: Repository<PasswordReset>,
-    private userService: UserService,
-    private resetPasswordService: ResetPasswordService,
-    private pendingService: PendingRegistrationService,
-    private verificationService: VerificationService,
-    private jwtService: JwtService,
-    private refreshTokenService: RefreshTokenService,
+    private readonly passwordResetRepo: Repository<PasswordReset>,
+    private readonly userService: UserService,
+    private readonly resetPasswordService: ResetPasswordService,
+    private readonly pendingService: PendingRegistrationService,
+    private readonly verificationService: VerificationService,
+    private readonly jwtService: JwtService,
+    private readonly refreshTokenService: RefreshTokenService,
   ) {}
 
   // -------------------------
   // Validate user credentials
   // -------------------------
-  async validateUser(
-    email: string,
-    password: string,
-  ): Promise<UserBase | null> {
+  async validateUser(email: string, password: string): Promise<UserBase | null> {
     const user = await this.userService.findByEmail(email);
     if (!user) return null;
 
@@ -63,26 +59,43 @@ export class AuthService {
   // Generate JWTs for user
   // -------------------------
   private generateTokens(user: User) {
-    // Use standard JWT subject (sub) claim for user id
     const payload = { sub: user.id, email: user.email };
 
     const accessToken = this.jwtService.sign(payload);
 
+    const decoded = this.jwtService.decode(accessToken) as {
+      exp?: number;
+    } | null;
+    const accessTokenExpiry = decoded?.exp ? decoded.exp * 1000 : Date.now() + 15 * 60 * 1000; //15m
+
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
-    return { accessToken, refreshToken };
+    return { accessToken, refreshToken, accessTokenExpiry };
   }
 
   // -------------------------
   // Request Signup
   // -------------------------
   async requestSignup(input: SignUpDto): Promise<{ message: string }> {
-    const existingUser = await this.userService.findByUsernameOrEmail(
-      input.username,
-      input.email,
-    );
+    const existingUser = await this.userService.findByUsernameOrEmail(input.username, input.email);
     if (existingUser) {
       throw new ConflictException('Username or email already exists');
+    }
+
+    // Remove expired pending registrations (older than 10 minutes)
+    const expirationDate = new Date(Date.now() - 10);
+    await this.pendingService.deleteExpiredPending(expirationDate);
+
+    // Rate limit: allow only one OTP request per 1:30 mins (90 seconds) per email/username
+    const lastPending = await this.pendingService.findLatestPending(input.email, input.username);
+    if (lastPending) {
+      const now = Date.now();
+      const lastCreated = new Date(lastPending.createdAt).getTime();
+      if (now - lastCreated < 90 * 1000) {
+        throw new ConflictException(
+          'You can request a new code only every 1 minute and 30 seconds. Please wait and try again.',
+        );
+      }
     }
 
     const hashedPassword = await bcrypt.hash(input.password, 10);
@@ -111,7 +124,6 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired verification code');
     }
 
-    // Create real user
     const newUser = await this.userService.create({
       email: pending.email,
       username: pending.username,
@@ -135,20 +147,16 @@ export class AuthService {
   // -------------------------
   // Signin
   // -------------------------
-  async signIn(
-    input: SignInDto,
-    req: RequestWithDevice,
-  ): Promise<SignInResponse> {
+  async signIn(input: SignInDto, req: RequestWithDevice): Promise<SignInResponse> {
     const user = await this.validateUser(input.email, input.password);
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const foundUser = await this.userService.findOneById(user.userId);
     if (!foundUser) throw new UnauthorizedException('User not found');
 
-    // revoke old refresh tokens
     await this.refreshTokenService.revokeTokens(foundUser.id);
 
-    const { accessToken, refreshToken } = this.generateTokens(foundUser);
+    const { accessToken, refreshToken, accessTokenExpiry } = this.generateTokens(foundUser);
 
     const deviceInfo = req.deviceInfo;
 
@@ -156,6 +164,7 @@ export class AuthService {
       userId: foundUser.id,
       token: refreshToken,
       deviceInfo: JSON.stringify(deviceInfo),
+      accessTokenExpiresAt: accessTokenExpiry,
     });
 
     return {
@@ -164,6 +173,7 @@ export class AuthService {
       username: user.username,
       role: user.role,
       accessToken,
+      accessTokenExpiry,
       refreshToken,
     };
   }
@@ -175,26 +185,36 @@ export class AuthService {
     try {
       const payload = this.jwtService.verify<{ sub: string }>(refreshToken);
 
-      const storedToken = await this.refreshTokenService.findToken(
-        payload.sub,
-        refreshToken,
-      );
-      if (!storedToken)
-        throw new UnauthorizedException('Invalid refresh token');
+      const storedToken = await this.refreshTokenService.findToken(payload.sub, refreshToken);
+      if (!storedToken) throw new UnauthorizedException('Invalid refresh token');
 
       const user = await this.userService.findOneById(payload.sub);
       if (!user) throw new UnauthorizedException('User not found');
 
+      // Rotate only after access token has expired
+      const now = Date.now();
+      const accessExpiryMs = storedToken.accessTokenExpiresAt ? Number(storedToken.accessTokenExpiresAt) : 0;
+
+      if (accessExpiryMs && now < accessExpiryMs) {
+        // Access token not yet expired: deny rotation until it expires
+        throw new UnauthorizedException('Access token not yet expired');
+      }
+
       // Generate new tokens and rotate refresh token
-      const tokens = this.generateTokens(user);
+      const { accessToken, refreshToken: newRefresh, accessTokenExpiry } = this.generateTokens(user);
 
       // Delete old refresh token (rotation)
-      await this.refreshTokenService.deleteRefreshToken(
-        payload.sub,
-        refreshToken,
+      await this.refreshTokenService.deleteRefreshToken(payload.sub, refreshToken);
+
+      await this.refreshTokenService.createRefreshToken(
+        user.id,
+        newRefresh,
+        'device-info-if-needed',
+        3,
+        accessTokenExpiry,
       );
 
-      return tokens;
+      return { accessToken, refreshToken: newRefresh, accessTokenExpiry };
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
@@ -230,6 +250,9 @@ export class AuthService {
     const user = await this.userService.findByEmail(email);
     if (!user) return { message: 'If this email exists, a code was sent' };
 
+    // Delete any existing reset codes for this user
+    await this.passwordResetRepo.delete({ userId: user.id });
+
     const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
     const hashedCode = await bcrypt.hash(code, 10);
 
@@ -249,23 +272,26 @@ export class AuthService {
   // -------------------------
   // Reset Password Code
   // -------------------------
-  async resetPasswordWithCode(
-    email: string,
-    code: string,
-    newPassword: string,
-  ) {
+  async resetPasswordWithCode(email: string, code: string, newPassword: string) {
     const user = await this.userService.findByEmail(email);
-    if (!user) throw new BadRequestException('Invalid request');
+    if (!user) {
+      throw new BadRequestException('Invalid request');
+    }
 
     const reset = await this.passwordResetRepo.findOne({
       where: { userId: user.id },
     });
-    if (!reset || reset.expiresAt < new Date()) {
+    if (!reset) {
+      throw new BadRequestException('Invalid or expired code');
+    }
+    if (reset.expiresAt < new Date()) {
       throw new BadRequestException('Invalid or expired code');
     }
 
     const isMatch = await bcrypt.compare(code, reset.codeHash);
-    if (!isMatch) throw new BadRequestException('Invalid code');
+    if (!isMatch) {
+      throw new BadRequestException('Invalid code');
+    }
 
     user.password = await bcrypt.hash(newPassword, 10);
     await this.userService.save(user);

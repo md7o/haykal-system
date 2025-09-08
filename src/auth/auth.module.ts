@@ -14,7 +14,9 @@ import { PasswordReset } from 'src/user/entities/password-reset.entity';
 import { ResetPasswordService } from './services/rest-password.service';
 import { VerificationService } from './services/verification.service';
 import { PendingRegistrationService } from './services/pending-registration.service';
+import { ExpiredEntitiesCleanupService } from './services/expired-entities-cleanup.service';
 import { PendingRegistration } from 'src/user/entities/pending_registrations.entity';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   controllers: [AuthController],
@@ -23,17 +25,14 @@ import { PendingRegistration } from 'src/user/entities/pending_registrations.ent
     ResetPasswordService,
     VerificationService,
     PendingRegistrationService,
+    ExpiredEntitiesCleanupService,
     LocalStrategy,
     RefreshTokenService,
     JwtStrategy,
   ],
   imports: [
     UserModule,
-    TypeOrmModule.forFeature([
-      RefreshToken,
-      PasswordReset,
-      PendingRegistration,
-    ]),
+    TypeOrmModule.forFeature([RefreshToken, PasswordReset, PendingRegistration]),
     ConfigModule.forRoot(),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
@@ -44,6 +43,7 @@ import { PendingRegistration } from 'src/user/entities/pending_registrations.ent
       }),
       inject: [ConfigService],
     }),
+    ScheduleModule.forRoot(),
   ],
 })
 export class AuthModule {}

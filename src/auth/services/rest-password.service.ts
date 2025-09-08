@@ -1,17 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as Brevo from '@getbrevo/brevo';
+import { LessThan } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { PasswordReset } from 'src/user/entities/password-reset.entity';
 
 @Injectable()
 export class ResetPasswordService {
   private apiInstance: Brevo.TransactionalEmailsApi;
   private readonly logger = new Logger(ResetPasswordService.name);
 
-  constructor() {
+  constructor(
+    @InjectRepository(PasswordReset)
+    private readonly passwordResetRepo: Repository<PasswordReset>,
+  ) {
     this.apiInstance = new Brevo.TransactionalEmailsApi();
-    this.apiInstance.setApiKey(
-      Brevo.TransactionalEmailsApiApiKeys.apiKey,
-      process.env.BREVO_API_KEY ?? '',
-    );
+    this.apiInstance.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY ?? '');
+  }
+  async deleteExpiredResets(currentDate: Date) {
+    await this.passwordResetRepo.delete({
+      expiresAt: LessThan(currentDate),
+    });
   }
 
   async sendOtpEmail(to: string, otpCode: string): Promise<void> {
@@ -54,10 +63,7 @@ export class ResetPasswordService {
     try {
       await this.apiInstance.sendTransacEmail(email);
     } catch (error) {
-      const msg =
-        typeof error === 'object' && error !== null
-          ? JSON.stringify(error)
-          : String(error);
+      const msg = typeof error === 'object' && error !== null ? JSON.stringify(error) : String(error);
       this.logger.error(`Failed to send verification email to ${to}: ${msg}`);
       throw error;
     }

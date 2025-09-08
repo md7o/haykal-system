@@ -22,6 +22,8 @@ export interface UserBase {
 // ---------- Auth Responses ----------
 export interface AuthTokens {
   accessToken: string;
+  // Unix epoch milliseconds when the access token expires
+  accessTokenExpiry: number;
   refreshToken?: string;
 }
 

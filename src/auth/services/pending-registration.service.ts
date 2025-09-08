@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PendingRegistration } from 'src/user/entities/pending_registrations.entity';
-import { MoreThan, Repository } from 'typeorm';
+import { MoreThan, LessThan, Repository } from 'typeorm';
 
 @Injectable()
 export class PendingRegistrationService {
@@ -33,5 +33,22 @@ export class PendingRegistrationService {
 
   async deletePending(id: number) {
     await this.repo.delete(id);
+  }
+
+  async deleteExpiredPending(before: Date) {
+    // Delete all pending registrations with expiresAt less than 'before'
+    return this.repo.delete({
+      expiresAt: LessThan(before),
+    });
+  }
+
+  /**
+   * Find the latest pending registration for a given email or username
+   */
+  async findLatestPending(email: string, username: string) {
+    return this.repo.findOne({
+      where: [{ email }, { username }],
+      order: { createdAt: 'DESC' },
+    });
   }
 }
