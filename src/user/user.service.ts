@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
@@ -12,8 +16,17 @@ export class UserService {
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
+    // Basic email validation, keep simple per unit test expectation
+    const email = createUserDto.email?.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestException('Invalid email');
+    }
     const user = this.usersReposetory.create(createUserDto);
     return this.usersReposetory.save(user);
+  }
+
+  async save(user: User): Promise<User> {
+    return await this.usersReposetory.save(user);
   }
 
   async findAll(): Promise<User[]> {
@@ -22,6 +35,18 @@ export class UserService {
 
   async findOneById(id: string): Promise<User | null> {
     return await this.usersReposetory.findOne({ where: { id } });
+  }
+  async findByEmail(email: string): Promise<User | null> {
+    return await this.usersReposetory.findOne({ where: { email } });
+  }
+
+  async findByUsernameOrEmail(
+    username: string,
+    email: string,
+  ): Promise<User | null> {
+    return await this.usersReposetory.findOne({
+      where: [{ username }, { email }],
+    });
   }
 
   async update(id: string): Promise<User> {

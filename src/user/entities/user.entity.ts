@@ -12,7 +12,7 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column({ select: false })
+  @Column()
   password: string;
 
   @Column({
@@ -23,17 +23,21 @@ export class User {
   role: UserRole;
 
   @Column({ default: false })
-  is_verified: boolean;
-
-  @Column({ default: false })
-  is_banned: boolean;
+  isBanned: boolean;
 
   @Column({ type: 'text', nullable: true })
-  banned_reason?: string;
+  bannedReason?: string;
 
-  @Column({ type: 'timestamp with time zone' })
-  created_at: Date;
+  @Column({
+    type: 'timestamp with time zone',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  createdAt: Date;
 
-  @Column({ type: 'timestamp with time zone' })
-  updated_at: Date;
+  @Column({
+    type: 'timestamp with time zone',
+    default: () => 'CURRENT_TIMESTAMP',
+    onUpdate: 'CURRENT_TIMESTAMP',
+  })
+  updatedAt: Date;
 }

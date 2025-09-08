@@ -1,7 +1,9 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UserModule } from './user/user.module';
+import { AuthModule } from './auth/auth.module';
+import { DeviceInfoMiddleware } from './auth/middleware/device-info.middleware';
 
 @Module({
   imports: [
@@ -24,6 +26,12 @@ import { UserModule } from './user/user.module';
       }),
     }),
     UserModule,
+    AuthModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(DeviceInfoMiddleware).forRoutes('auth/signin');
+    // apply only to login route
+  }
+}
