@@ -1,4 +1,4 @@
 export enum LayoutType {
-  LandingPage = 'LandingPage',
+  Landingpage = 'Landingpage',
   Sections = 'Sections',
 }

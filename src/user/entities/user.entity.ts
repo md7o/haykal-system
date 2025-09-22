@@ -1,5 +1,6 @@
 import { UserRole } from '../../enums/user-role';
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
+import { Portfolio } from '../../portfolio/entities/portfolio.entity';
 
 @Entity('user')
 export class User {
@@ -40,4 +41,7 @@ export class User {
     onUpdate: 'CURRENT_TIMESTAMP',
   })
   updatedAt: Date;
+
+  @OneToMany(() => Portfolio, (portfolio) => portfolio.user)
+  portfolios: Portfolio[];
 }

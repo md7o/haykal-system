@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { DeviceInfoMiddleware } from './auth/middleware/device-info.middleware';
+import { PortfolioModule } from './portfolio/portfolio.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { DeviceInfoMiddleware } from './auth/middleware/device-info.middleware';
     }),
     UserModule,
     AuthModule,
+    PortfolioModule,
   ],
 })
 export class AppModule implements NestModule {
