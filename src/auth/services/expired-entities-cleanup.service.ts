@@ -10,8 +10,8 @@ export class ExpiredEntitiesCleanupService {
     private readonly resetPasswordService: ResetPasswordService,
   ) {}
 
-  // Runs every hour
-  @Cron(CronExpression.EVERY_HOUR)
+  // Runs every 5 hours
+  @Cron(CronExpression.EVERY_5_HOURS)
   async handleCleanup() {
     const now = new Date();
     await this.pendingService.deleteExpiredPending(now);

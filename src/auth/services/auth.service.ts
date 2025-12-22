@@ -5,7 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
 import { UserService } from 'src/user/user.service';
-import { UserRole } from 'src/enums/user-role';
+import { UserRole } from 'src/common/enums/user-role';
 import { User } from 'src/user/entities/user.entity';
 import { PasswordReset } from 'src/user/entities/password-reset.entity';
 
@@ -191,14 +191,15 @@ export class AuthService {
       const user = await this.userService.findOneById(payload.sub);
       if (!user) throw new UnauthorizedException('User not found');
 
-      // Rotate only after access token has expired
-      const now = Date.now();
-      const accessExpiryMs = storedToken.accessTokenExpiresAt ? Number(storedToken.accessTokenExpiresAt) : 0;
+      // === Rotation only after pass the access token expiry ===
 
-      if (accessExpiryMs && now < accessExpiryMs) {
-        // Access token not yet expired: deny rotation until it expires
-        throw new UnauthorizedException('Access token not yet expired');
-      }
+      // const now = Date.now();
+      // const accessExpiryMs = storedToken.accessTokenExpiresAt ? Number(storedToken.accessTokenExpiresAt) : 0;
+
+      // if (accessExpiryMs && now < accessExpiryMs) {
+      //   // Access token not yet expired: deny rotation until it expires
+      //   throw new UnauthorizedException('Access token not yet expired');
+      // }
 
       // Generate new tokens and rotate refresh token
       const { accessToken, refreshToken: newRefresh, accessTokenExpiry } = this.generateTokens(user);
