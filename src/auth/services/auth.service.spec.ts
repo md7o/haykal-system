@@ -4,7 +4,7 @@ import { UserService } from '../../user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshTokenService } from './refresh-token.service';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
-import { UserRole } from 'src/enums/user-role';
+import { UserRole } from 'src/common/enums/user-role';
 import * as bcrypt from 'bcrypt';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { PasswordReset } from 'src/user/entities/password-reset.entity';
@@ -52,6 +52,8 @@ describe('AuthService', () => {
             createPendingRegistration: jest.fn(),
             findValidCode: jest.fn(),
             deletePending: jest.fn(),
+            deleteExpiredPending: jest.fn(),
+            findLatestPending: jest.fn(),
           },
         },
         {
@@ -118,10 +120,7 @@ describe('AuthService', () => {
     it('should return null if user not found', async () => {
       (userService.findByEmail as jest.Mock).mockResolvedValue(null);
 
-      const result = await authService.validateUser(
-        'wrong@example.com',
-        'pass',
-      );
+      const result = await authService.validateUser('wrong@example.com', 'pass');
       expect(result).toBeNull();
     });
 
@@ -146,6 +145,8 @@ describe('AuthService', () => {
         createPendingRegistration: jest.fn().mockResolvedValue(true),
         findValidCode: jest.fn(),
         deletePending: jest.fn(),
+        deleteExpiredPending: jest.fn().mockResolvedValue(true),
+        findLatestPending: jest.fn(),
         repo: {},
       };
       (authService as any)['verificationService'] = {
@@ -164,9 +165,7 @@ describe('AuthService', () => {
     });
 
     it('should throw ConflictException if user exists', async () => {
-      (userService.findByUsernameOrEmail as jest.Mock).mockResolvedValue(
-        mockUser,
-      );
+      (userService.findByUsernameOrEmail as jest.Mock).mockResolvedValue(mockUser);
       await expect(
         authService.requestSignup({
           username: 'duplicate',
@@ -211,10 +210,7 @@ describe('AuthService', () => {
         accepts: jest.fn(),
         acceptsCharsets: jest.fn(),
       };
-      const result = await authService.signIn(
-        { email: mockUser.email, password: 'password' },
-        mockRequest,
-      );
+      const result = await authService.signIn({ email: mockUser.email, password: 'password' }, mockRequest);
 
       expect(result).toMatchObject({
         userId: mockUser.id,
@@ -225,9 +221,7 @@ describe('AuthService', () => {
         accessTokenExpiry: expect.any(Number),
         refreshToken: 'refresh-token',
       });
-      expect(refreshTokenService.revokeTokens).toHaveBeenCalledWith(
-        mockUser.id,
-      );
+      expect(refreshTokenService.revokeTokens).toHaveBeenCalledWith(mockUser.id);
       expect(refreshTokenService.saveToken).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: mockUser.id,
@@ -255,9 +249,9 @@ describe('AuthService', () => {
         accepts: jest.fn(),
         acceptsCharsets: jest.fn(),
       };
-      await expect(
-        authService.signIn({ email: 'wrong', password: 'wrong' }, mockRequest2),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(authService.signIn({ email: 'wrong', password: 'wrong' }, mockRequest2)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -290,21 +284,29 @@ describe('AuthService', () => {
         throw new Error('invalid');
       });
 
-      await expect(authService.refreshTokens('bad-token')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(authService.refreshTokens('bad-token')).rejects.toThrow(UnauthorizedException);
     });
 
     it('should reject rotation if access token not yet expired', async () => {
+      // Previously rotation was denied if access token not yet expired.
+      // New behavior allows rotation at any time — ensure it returns tokens.
       (jwtService.verify as jest.Mock).mockReturnValue({ sub: '1' });
       (refreshTokenService.findToken as jest.Mock).mockResolvedValue({
         accessTokenExpiresAt: String(Date.now() + 60_000),
       });
       (userService.findOneById as jest.Mock).mockResolvedValue(mockUser);
+      (jwtService.sign as jest.Mock).mockReturnValueOnce('new-access-token-2');
+      (jwtService.decode as jest.Mock).mockReturnValue({
+        exp: Math.floor((Date.now() + 10_000) / 1000),
+      });
+      (jwtService.sign as jest.Mock).mockReturnValueOnce('new-refresh-token-2');
 
-      await expect(authService.refreshTokens('refresh-token')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      const result = await authService.refreshTokens('refresh-token');
+      expect(result).toEqual({
+        accessToken: 'new-access-token-2',
+        refreshToken: 'new-refresh-token-2',
+        accessTokenExpiry: expect.any(Number),
+      });
     });
   });
 
