@@ -1,0 +1,381 @@
+{
+  "info": {
+    "name": "Haykal System - Community APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0",
+    "_postman_id": "b5d9b6d3-9f8c-4a18-a9f1-0f4a1cb5d6b8",
+    "description": "CRUD endpoints for Community module: user-status, posts, user-activity. Replace {{baseUrl}} and {{token}} before running."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userStatusId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "postId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "activityId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints",
+      "item": [
+        {
+          "name": "Sign In",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"your-email@example.com\",\n  \"password\": \"your-password\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/signin",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "signin"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.log('Response Status:', pm.response.code);",
+                  "console.log('Response Body:', pm.response.text());",
+                  "if (pm.response.code === 200) {",
+                  "  try {",
+                  "    var json = pm.response.json();",
+                  "    if (json && json.accessToken) {",
+                  "      pm.collectionVariables.set('token', json.accessToken);",
+                  "      console.log('Token set successfully:', json.accessToken.substring(0, 20) + '...');",
+                  "    } else {",
+                  "      console.log('No accessToken in response');",
+                  "    }",
+                  "  } catch (e) {",
+                  "    console.log('Error parsing response:', e.message);",
+                  "  }",
+                  "} else {",
+                  "  console.log('Sign in failed with status:', pm.response.code);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Token (Test Auth)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "UserStatus",
+      "description": "Endpoints for community/user-status",
+      "item": [
+        {
+          "name": "Create UserStatus",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Supervisor\",\n  \"message\": \"I manage the community content\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/community/user-status",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "user-status"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  var json = pm.response.json();",
+                  "  if (json && json.id) { pm.environment.set('userStatusId', json.id); }",
+                  "} catch (e) { }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List UserStatuses",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/community/user-status",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "user-status"]
+            }
+          }
+        },
+        {
+          "name": "Get UserStatus by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/community/user-status/{{userStatusId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "user-status", "{{userStatusId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update UserStatus",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Supervisor\",\n  \"message\": \"Updated message\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/community/user-status/{{userStatusId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "user-status", "{{userStatusId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete UserStatus",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/community/user-status/{{userStatusId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "user-status", "{{userStatusId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "description": "Endpoints for community/posts",
+      "item": [
+        {
+          "name": "Create Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Hello World\",\n  \"content\": \"This is a test post\",\n  \"userStatusId\": \"{{userStatusId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/community/posts",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "posts"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  var json = pm.response.json();",
+                  "  if (json && json.id) { pm.environment.set('postId', json.id); }",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Posts",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/community/posts",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "posts"]
+            }
+          }
+        },
+        {
+          "name": "Get Post by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/community/posts/{{postId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "posts", "{{postId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Post",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Hello World - Updated\",\n  \"content\": \"Updated content\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/community/posts/{{postId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "posts", "{{postId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Post",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/community/posts/{{postId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "posts", "{{postId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "UserActivity",
+      "description": "Endpoints for community/user-activity",
+      "item": [
+        {
+          "name": "Create UserActivity (Like)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityType\": \"Like\",\n  \"postId\": \"{{postId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/community/user-activity",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "user-activity"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  var json = pm.response.json();",
+                  "  if (json && json.id) { pm.environment.set('activityId', json.id); }",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List UserActivities",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/community/user-activity",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "user-activity"]
+            }
+          }
+        },
+        {
+          "name": "Get UserActivity by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/community/user-activity/{{activityId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "user-activity", "{{activityId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update UserActivity",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityType\": \"Comment\",\n  \"comment\": \"Nice post!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/community/user-activity/{{activityId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "user-activity", "{{activityId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete UserActivity",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/community/user-activity/{{activityId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["community", "user-activity", "{{activityId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

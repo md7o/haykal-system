@@ -1,6 +1,7 @@
 import { UserRole } from '../../common/enums/user-role';
-import { Column, Entity, PrimaryGeneratedColumn, OneToOne } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, OneToOne, OneToMany } from 'typeorm';
 import { Portfolio } from '../../portfolio-builder-tool/portfolio/entities/portfolio.entity';
+import { Membership } from '../../community/membership/entities/membership.entity';
 
 @Entity('user')
 export class User {
@@ -44,4 +45,7 @@ export class User {
 
   @OneToOne(() => Portfolio, (portfolio) => portfolio.user)
   portfolio: Portfolio;
+
+  @OneToMany(() => Membership, (membership) => membership.user)
+  memberships: Membership[];
 }
