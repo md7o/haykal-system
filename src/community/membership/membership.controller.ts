@@ -18,12 +18,17 @@ export class MembershipController {
   @ApiOperation({ summary: 'Create user status' })
   async create(@Req() req: AuthenticatedRequest, @Body() dto: CreateMembershipDto): Promise<Membership> {
     const userId: string = req.user.userId;
-    return this.service.create(userId, dto);
+    const communityId: string = dto.communityId;
+    return this.service.create(userId, communityId, dto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'List user statuses' })
-  async findAll(@Req() req: AuthenticatedRequest): Promise<Membership[]> {
+  async findAll(): Promise<Membership[]> {
+    return this.service.findAll();
+  }
+  @Get('me')
+  @ApiOperation({ summary: 'List authenticated user statuses' })
+  async findAllByUser(@Req() req: AuthenticatedRequest): Promise<Membership[]> {
     const userId: string = req.user.userId;
     return this.service.findAllByUser(userId);
   }

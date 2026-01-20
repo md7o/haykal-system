@@ -33,28 +33,26 @@ export class AuthController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('me')
-  me(@Request() req: { user: { userId: string } }) {
-    return this.authService.me(req.user.userId);
-  }
-
   @Post('refresh')
   async refresh(
     @Req() req: RequestWithDevice,
     @Body('refreshToken') refreshTokenFromBody: string | undefined,
     @Res() res: Response,
   ) {
-    // Prefer cookie, fall back to body for non-cookie clients (e.g., mobile)
     const incomingRefreshToken = req.cookies?.['refreshToken'] || refreshTokenFromBody;
-
     if (!incomingRefreshToken) throw new UnauthorizedException('No refresh token');
 
-    const { accessToken, refreshToken, accessTokenExpiry } = await this.authService.refreshTokens(incomingRefreshToken);
+    // 1. Get tokens from the service
+    const { accessToken, accessTokenExpiry, refreshToken } = await this.authService.refreshTokens(incomingRefreshToken);
 
     res.cookie('refreshToken', String(refreshToken), this.getCookieOptions());
 
-    return res.json({ accessToken, accessTokenExpiry });
+    // 2. Return tokens. Frontend can call /auth/me separately to get profile data if needed.
+    return res.json({
+      accessToken,
+      accessTokenExpiry,
+      refreshToken,
+    });
   }
 
   @Post('request-signup')
@@ -66,12 +64,16 @@ export class AuthController {
   async verifySignup(@Body() body: { email: string; code: string }) {
     return this.authService.verifySignup(body.email, body.code);
   }
+
   @UseGuards(PassportLocalGuard)
   @Post('signin')
   async signIn(@Req() req: RequestWithDevice, @Body() input: SignInDto, @Res() res: Response) {
-    const { accessToken, accessTokenExpiry, refreshToken } = await this.authService.signIn(input, req);
+    // AuthService.signIn returns SignInResponse with user and token data
+    const response = await this.authService.signIn(input, req);
+    const { userId, email, username, role, accessToken, accessTokenExpiry, refreshToken } = response;
+
     res.cookie('refreshToken', String(refreshToken), this.getCookieOptions());
-    res.json({ accessToken, accessTokenExpiry });
+    return res.json({ userId, email, username, role, accessToken, accessTokenExpiry });
   }
 
   @UseGuards(JwtAuthGuard)
@@ -105,5 +107,12 @@ export class AuthController {
       throw new UnauthorizedException('Passwords do not match');
     }
     return this.authService.resetPasswordWithCode(email, code, password);
+  }
+
+  // Keep 'me' only for manual profile refreshes, don't call it on app load
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  me(@Request() req: { user: { userId: string } }) {
+    return this.authService.me(req.user.userId);
   }
 }

@@ -1,94 +1,94 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { RefreshToken } from 'src/user/entities/refresh-token.entity';
-import * as bcrypt from 'bcrypt';
+import { redis } from 'src/common/redis/redis.provider';
+
+const REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60; // 7 days in seconds
 
 @Injectable()
 export class RefreshTokenService {
-  constructor(
-    @InjectRepository(RefreshToken)
-    private refreshTokenRepository: Repository<RefreshToken>,
-  ) {}
+  /**
+   * Create and store a refresh token in Redis
+   * Key format: refresh_token:${tokenHash}
+   * Value: userId
+   * Also maintains user_tokens:${userId} set for session management
+   */
+  async createRefreshToken(userId: string, token: string, maxSessions = 3): Promise<{ userId: string; token: string }> {
+    // Get all tokens for this user
+    const userTokensKey = `user_tokens:${userId}`;
+    const tokenCount = await redis.scard(userTokensKey);
 
-  async createRefreshToken(
-    userId: string,
-    token: string,
-    deviceInfo?: string,
-    maxSessions = 3,
-    accessTokenExpiresAt?: number,
-  ): Promise<RefreshToken> {
-    const tokens = await this.refreshTokenRepository.find({
-      where: { userId },
-      order: { createdAt: 'ASC' },
-    });
+    // If at max sessions, remove oldest tokens
+    if (tokenCount >= maxSessions) {
+      const tokensToRemove = tokenCount - maxSessions + 1;
+      const oldTokens = await redis.smembers(userTokensKey);
 
-    if (tokens.length >= maxSessions) {
-      const toDelete = tokens.slice(0, tokens.length - maxSessions + 1);
-      for (const t of toDelete) {
-        await this.refreshTokenRepository.delete(t.id);
+      for (let i = 0; i < tokensToRemove && i < oldTokens.length; i++) {
+        await redis.del(`refresh_token:${oldTokens[i]}`);
+        await redis.srem(userTokensKey, oldTokens[i]);
       }
     }
 
-    const hashedToken = await bcrypt.hash(token, 10);
+    // Store token in Redis with TTL
+    await redis.setex(`refresh_token:${token}`, REFRESH_TOKEN_TTL, userId);
 
-    const refreshToken = this.refreshTokenRepository.create({
-      userId,
-      token: hashedToken,
-      deviceInfo,
-      accessTokenExpiresAt: accessTokenExpiresAt
-        ? String(accessTokenExpiresAt)
-        : null,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    });
-    return this.refreshTokenRepository.save(refreshToken);
+    // Add token to user's token set
+    await redis.sadd(userTokensKey, token);
+    await redis.expire(userTokensKey, REFRESH_TOKEN_TTL);
+
+    return { userId, token };
   }
 
-  async findToken(userId: string, token: string): Promise<RefreshToken | null> {
-    const storedTokens = await this.refreshTokenRepository.find({
-      where: { userId },
-    });
+  /**
+   * Find and validate a refresh token
+   */
+  async findToken(userId: string, token: string): Promise<{ userId: string } | null> {
+    const storedUserId = await redis.get(`refresh_token:${token}`);
 
-    for (const stored of storedTokens) {
-      const isMatch = await bcrypt.compare(token, stored.token);
-      if (isMatch) {
-        return stored;
-      }
+    if (storedUserId && storedUserId === userId) {
+      return { userId: storedUserId };
     }
 
     return null;
   }
 
+  /**
+   * Delete a specific refresh token
+   */
   async deleteRefreshToken(userId: string, token: string): Promise<void> {
-    const stored = await this.findToken(userId, token);
-    if (stored) {
-      await this.refreshTokenRepository.delete(stored.id);
-    }
+    await redis.del(`refresh_token:${token}`);
+    await redis.srem(`user_tokens:${userId}`, token);
   }
 
+  /**
+   * Revoke all tokens for a user
+   */
   async revokeTokens(userId: string): Promise<void> {
-    await this.refreshTokenRepository.delete({ userId });
+    const userTokensKey = `user_tokens:${userId}`;
+    const tokens = await redis.smembers(userTokensKey);
+
+    for (const token of tokens) {
+      await redis.del(`refresh_token:${token}`);
+    }
+
+    await redis.del(userTokensKey);
   }
 
+  /**
+   * Save a token (used during sign-in)
+   */
   async saveToken(tokenData: {
     userId: string;
     token: string;
     deviceInfo?: string;
     accessTokenExpiresAt?: number;
   }): Promise<void> {
-    const { userId, token, deviceInfo, accessTokenExpiresAt } = tokenData;
+    const { userId, token } = tokenData;
 
-    const hashedToken = await bcrypt.hash(token, 10);
+    // Store token in Redis with TTL
+    await redis.setex(`refresh_token:${token}`, REFRESH_TOKEN_TTL, userId);
 
-    const refreshToken = this.refreshTokenRepository.create({
-      userId,
-      token: hashedToken,
-      deviceInfo,
-      accessTokenExpiresAt: accessTokenExpiresAt
-        ? String(accessTokenExpiresAt)
-        : null,
-    });
-
-    await this.refreshTokenRepository.save(refreshToken);
+    // Add token to user's token set
+    const userTokensKey = `user_tokens:${userId}`;
+    await redis.sadd(userTokensKey, token);
+    await redis.expire(userTokensKey, REFRESH_TOKEN_TTL);
   }
 }

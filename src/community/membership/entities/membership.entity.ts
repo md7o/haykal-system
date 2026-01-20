@@ -8,21 +8,23 @@ import {
   UpdateDateColumn,
   JoinColumn,
   Index,
+  In,
 } from 'typeorm';
-import { Post } from '../../posts/entities/post.entity';
+import { CommunityItem } from '../../community-items/entities/community-items.entity';
 import { User } from '../../../user/entities/user.entity';
 import { MembershipType } from 'src/common/enums/membership-type';
+import { CommunityData } from '../../community-data/entities/community-data.entity';
 
 @Entity('membership')
 export class Membership {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
-  status: string;
+  @Column({ type: 'enum', enum: MembershipType, default: MembershipType.Member })
+  role: MembershipType;
 
-  @Column({ type: 'enum', enum: MembershipType, default: MembershipType.User })
-  userType: MembershipType;
+  @Column({ type: 'varchar', nullable: true })
+  authorName: string;
 
   @Index('idx_user_status_user_id')
   @Column({ type: 'uuid' })
@@ -32,12 +34,20 @@ export class Membership {
   @JoinColumn({ name: 'userId' })
   user: User;
 
+  @Index('idx_membership_community_id')
+  @Column({ type: 'uuid' })
+  communityId: string;
+
+  @ManyToOne(() => CommunityData, (community) => community.memberships, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'communityId' })
+  community: CommunityData;
+
   @CreateDateColumn()
-  createdAt: Date;
+  joinedAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @OneToMany(() => Post, (post) => post.membership)
-  posts?: Post[];
+  @OneToMany(() => CommunityItem, (communityItem) => communityItem.membership)
+  communityItems?: CommunityItem[];
 }

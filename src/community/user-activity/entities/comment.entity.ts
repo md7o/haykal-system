@@ -1,5 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn, CreateDateColumn, Index, ManyToOne, JoinColumn } from 'typeorm';
-import { Post } from '../../posts/entities/post.entity';
+import { CommunityItem } from '../../community-items/entities/community-items.entity';
 import { Membership } from '../../membership/entities/membership.entity';
 
 @Entity('comments')
@@ -7,21 +7,21 @@ export class Comment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Index('idx_comments_user_status_id')
+  @Index('idx_comments_membership_id')
   @Column({ type: 'uuid' })
-  userStatusId: string;
+  membershipId: string;
 
   @ManyToOne(() => Membership, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userStatusId' })
+  @JoinColumn({ name: 'membershipId' })
   membership: Membership;
 
-  @Index('idx_comments_post_id')
+  @Index('idx_comments_community_item_id')
   @Column({ type: 'uuid' })
-  postId: string;
+  communityItemId: string;
 
-  @ManyToOne(() => Post, (post) => post.comments, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'postId' })
-  post: Post;
+  @ManyToOne(() => CommunityItem, (communityItem) => communityItem.comments, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'communityItemId' })
+  communityItem: CommunityItem;
 
   @Column({ type: 'text' })
   content: string;

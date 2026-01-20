@@ -1,4 +1,4 @@
 export enum MembershipType {
-  Supervisor = 'Supervisor',
-  User = 'User',
+  Owner = 'owner',
+  Member = 'member',
 }

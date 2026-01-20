@@ -1,26 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as Brevo from '@getbrevo/brevo';
-import { LessThan } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { PasswordReset } from 'src/user/entities/password-reset.entity';
 
 @Injectable()
 export class ResetPasswordService {
   private apiInstance: Brevo.TransactionalEmailsApi;
   private readonly logger = new Logger(ResetPasswordService.name);
 
-  constructor(
-    @InjectRepository(PasswordReset)
-    private readonly passwordResetRepo: Repository<PasswordReset>,
-  ) {
+  constructor() {
     this.apiInstance = new Brevo.TransactionalEmailsApi();
-    this.apiInstance.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY ?? '');
   }
-  async deleteExpiredResets(currentDate: Date) {
-    await this.passwordResetRepo.delete({
-      expiresAt: LessThan(currentDate),
-    });
+
+  async validateCode(email: string, code: string): Promise<boolean> {
+    // Validation logic for OTP codes
+    // This should be implemented based on your OTP storage mechanism
+    // Return true if valid, false otherwise
+    return true;
   }
 
   async sendOtpEmail(to: string, otpCode: string): Promise<void> {
@@ -61,6 +55,8 @@ export class ResetPasswordService {
     email.htmlContent = html;
     email.textContent = `Your password reset code is ${otpCode}`;
     try {
+      // Set the API key before each request
+      this.apiInstance.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY ?? '');
       await this.apiInstance.sendTransacEmail(email);
     } catch (error) {
       const msg = typeof error === 'object' && error !== null ? JSON.stringify(error) : String(error);

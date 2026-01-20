@@ -27,7 +27,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
       throttlers: [
         {
           ttl: 60000, // 1 minute
-          limit: 30,
+          limit: 50,
         },
       ],
     }),
@@ -35,14 +35,23 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     LoggerModule.forRoot({
       pinoHttp: {
         // 1. Set the log level (debug, info, warn, error)
-        level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info',
-
+        level: process.env.NODE_ENV !== 'production' ? 'info' : 'info',
         // 2. Format logs to be human-readable in development
         transport:
-          process.env.NODE_ENV !== 'production' ? { target: 'pino-pretty', options: { colorize: true } } : undefined,
-
+          process.env.NODE_ENV !== 'production'
+            ? {
+                target: 'pino-pretty',
+                options: {
+                  colorize: true,
+                  singleLine: true,
+                  ignore: 'pid,hostname,req.headers,req.remoteAddress,req.remotePort',
+                  messageFormat: '{req.method} {req.url} {res.statusCode} - {responseTime}ms',
+                },
+              }
+            : undefined,
         // 3. Redact sensitive information from logs
-        // redact: ['req.headers.authorization', 'req.body.password'],
+        customProps: () => ({}),
+        redact: ['req.headers.authorization', 'req.headers.cookie'],
       },
     }),
     TypeOrmModule.forRootAsync({

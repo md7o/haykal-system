@@ -15,35 +15,36 @@ export class UserActivityController {
   constructor(private readonly service: UserActivityService) {}
 
   @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 requests per minute
-  @Post('likes/:postId/toggle')
-  @ApiOperation({ summary: 'Toggle like for a post' })
-  async toggleLike(@Req() req: AuthenticatedRequest, @Param('postId') postId: string) {
+  @Post('likes/:communityItemId/toggle')
+  @ApiOperation({ summary: 'Toggle like for a community item' })
+  async toggleLike(@Req() req: AuthenticatedRequest, @Param('communityItemId') communityItemId: string) {
     const userId: string = req.user.userId;
-    return this.service.toggleLike(userId, postId);
-  }
-  @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 requests per minute
-  @Post('saves/:postId/toggle')
-  @ApiOperation({ summary: 'Toggle save for a post' })
-  async toggleSave(@Req() req: AuthenticatedRequest, @Param('postId') postId: string) {
-    const userId: string = req.user.userId;
-    return this.service.toggleSave(userId, postId);
+    return this.service.toggleLike(userId, communityItemId);
   }
 
-  @Post('comments/:postId')
-  @ApiOperation({ summary: 'Create comment for a post' })
+  // ============ COMMENTS ENDPOINTS =============
+  @Post('comments/:communityItemId')
+  @ApiOperation({ summary: 'Create comment for a community item' })
   async createComment(
     @Req() req: AuthenticatedRequest,
-    @Param('postId') postId: string,
+    @Param('communityItemId') communityItemId: string,
     @Body() dto: CreateCommentDto,
   ) {
     const userId: string = req.user.userId;
-    return this.service.createComment(userId, postId, dto.content);
+    return this.service.createComment(userId, communityItemId, dto.content);
   }
 
-  @Get('comments/:postId')
-  @ApiOperation({ summary: 'List comments for a post' })
-  async listComments(@Param('postId') postId: string) {
-    return this.service.findAllCommentsByPost(postId);
+  @Get('comments/count')
+  @ApiOperation({ summary: 'Count comments by authenticated user' })
+  async countCommentsByUser(@Req() req: AuthenticatedRequest) {
+    const userId: string = req.user.userId;
+    return this.service.countCommentsByUser(userId);
+  }
+
+  @Get('comments/:communityItemId')
+  @ApiOperation({ summary: 'List comments for a community item' })
+  async listComments(@Param('communityItemId') communityItemId: string) {
+    return this.service.findAllCommentsByCommunityItem(communityItemId);
   }
 
   @Delete('comments/:commentId')

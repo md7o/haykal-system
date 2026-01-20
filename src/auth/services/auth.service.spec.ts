@@ -6,8 +6,6 @@ import { RefreshTokenService } from './refresh-token.service';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { UserRole } from 'src/common/enums/user-role';
 import * as bcrypt from 'bcrypt';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { PasswordReset } from 'src/user/entities/password-reset.entity';
 import { ResetPasswordService } from './rest-password.service';
 import { PendingRegistrationService } from './pending-registration.service';
 import { VerificationService } from './verification.service';
@@ -19,6 +17,7 @@ describe('AuthService', () => {
   let userService: jest.Mocked<UserService>;
   let jwtService: jest.Mocked<JwtService>;
   let refreshTokenService: jest.Mocked<RefreshTokenService>;
+  let resetPasswordService: jest.Mocked<ResetPasswordService>;
 
   const mockUser = {
     id: '1',
@@ -32,18 +31,12 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
-          provide: getRepositoryToken(PasswordReset),
-          useValue: {
-            create: jest.fn(),
-            save: jest.fn(),
-            findOne: jest.fn(),
-            delete: jest.fn(),
-          },
-        },
-        {
           provide: ResetPasswordService,
           useValue: {
             sendOtpEmail: jest.fn(),
+            storeResetCode: jest.fn(),
+            getResetCode: jest.fn(),
+            deleteResetCode: jest.fn(),
           },
         },
         {
@@ -97,6 +90,7 @@ describe('AuthService', () => {
     userService = module.get(UserService);
     jwtService = module.get(JwtService);
     refreshTokenService = module.get(RefreshTokenService);
+    resetPasswordService = module.get(ResetPasswordService);
   });
 
   // ---------------------------

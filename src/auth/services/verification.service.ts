@@ -7,12 +7,10 @@ export class VerificationService {
   private emailApi: Brevo.TransactionalEmailsApi;
 
   constructor() {
-    const apiInstance = new Brevo.TransactionalEmailsApi();
-    apiInstance.setApiKey(
-      Brevo.TransactionalEmailsApiApiKeys.apiKey,
-      process.env.BREVO_API_KEY || '',
-    );
-    this.emailApi = apiInstance;
+    this.emailApi = new Brevo.TransactionalEmailsApi();
+    if (!process.env.BREVO_API_KEY) {
+      this.logger.warn('BREVO_API_KEY is not set. Email sending will fail.');
+    }
   }
 
   async sendOtpVerification(to: string, otpCode: string): Promise<void> {
@@ -53,14 +51,21 @@ export class VerificationService {
     email.htmlContent = html;
     email.textContent = `Your verification code is ${otpCode}`;
     try {
+      // Set the API key before each request
+      this.emailApi.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY || '');
       await this.emailApi.sendTransacEmail(email);
       this.logger.log(`Verification email sent to ${to}`);
     } catch (error) {
-      const msg =
-        typeof error === 'object' && error !== null
-          ? JSON.stringify(error)
-          : String(error);
+      const msg = typeof error === 'object' && error !== null ? JSON.stringify(error) : String(error);
       this.logger.error(`Failed to send verification email to ${to}: ${msg}`);
+
+      // Log detailed error information
+      if (error instanceof Error) {
+        this.logger.error(`Error name: ${error.name}`);
+        this.logger.error(`Error message: ${error.message}`);
+        this.logger.error(`Stack: ${error.stack}`);
+      }
+
       throw error;
     }
   }

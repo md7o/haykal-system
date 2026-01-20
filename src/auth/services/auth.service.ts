@@ -1,13 +1,10 @@
 import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
 import { UserService } from 'src/user/user.service';
 import { UserRole } from 'src/common/enums/user-role';
 import { User } from 'src/user/entities/user.entity';
-import { PasswordReset } from 'src/user/entities/password-reset.entity';
 
 import { RefreshTokenService } from './refresh-token.service';
 import { ResetPasswordService } from './rest-password.service';
@@ -27,8 +24,6 @@ import e from 'express';
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(PasswordReset)
-    private readonly passwordResetRepo: Repository<PasswordReset>,
     private readonly userService: UserService,
     private readonly resetPasswordService: ResetPasswordService,
     private readonly pendingService: PendingRegistrationService,
@@ -82,15 +77,11 @@ export class AuthService {
       throw new ConflictException('Username or email already exists');
     }
 
-    // Remove expired pending registrations (older than 10 minutes)
-    const expirationDate = new Date(Date.now() - 10);
-    await this.pendingService.deleteExpiredPending(expirationDate);
-
     // Rate limit: allow only one OTP request per 1:30 mins (90 seconds) per email/username
     const lastPending = await this.pendingService.findLatestPending(input.email, input.username);
     if (lastPending) {
       const now = Date.now();
-      const lastCreated = new Date(lastPending.createdAt).getTime();
+      const lastCreated = lastPending.createdAt;
       if (now - lastCreated < 90 * 1000) {
         throw new ConflictException(
           'You can request a new code only every 1 minute and 30 seconds. Please wait and try again.',
@@ -106,11 +97,12 @@ export class AuthService {
       username: input.username,
       password: hashedPassword,
       code,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes (TTL handled by Redis)
     });
 
     await this.verificationService.sendOtpVerification(input.email, code);
 
+    // Return the token for client-side verification (optional, for reference)
     return { message: 'Verification code sent to your email' };
   }
 
@@ -131,7 +123,8 @@ export class AuthService {
       role: UserRole.User,
     });
 
-    await this.pendingService.deletePending(pending.id);
+    // Note: No need to explicitly delete from Redis as TTL will auto-expire the key
+    // If you want immediate deletion (optional), you can find the token and call deleteByToken
 
     const tokens = this.generateTokens(newUser);
 
@@ -193,27 +186,13 @@ export class AuthService {
 
       // === Rotation only after pass the access token expiry ===
 
-      // const now = Date.now();
-      // const accessExpiryMs = storedToken.accessTokenExpiresAt ? Number(storedToken.accessTokenExpiresAt) : 0;
-
-      // if (accessExpiryMs && now < accessExpiryMs) {
-      //   // Access token not yet expired: deny rotation until it expires
-      //   throw new UnauthorizedException('Access token not yet expired');
-      // }
-
       // Generate new tokens and rotate refresh token
       const { accessToken, refreshToken: newRefresh, accessTokenExpiry } = this.generateTokens(user);
 
       // Delete old refresh token (rotation)
       await this.refreshTokenService.deleteRefreshToken(payload.sub, refreshToken);
 
-      await this.refreshTokenService.createRefreshToken(
-        user.id,
-        newRefresh,
-        'device-info-if-needed',
-        3,
-        accessTokenExpiry,
-      );
+      await this.refreshTokenService.createRefreshToken(user.id, newRefresh);
 
       return { accessToken, refreshToken: newRefresh, accessTokenExpiry };
     } catch {
@@ -251,19 +230,7 @@ export class AuthService {
     const user = await this.userService.findByEmail(email);
     if (!user) return { message: 'If this email exists, a code was sent' };
 
-    // Delete any existing reset codes for this user
-    await this.passwordResetRepo.delete({ userId: user.id });
-
     const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
-    const hashedCode = await bcrypt.hash(code, 10);
-
-    const resetEntry = this.passwordResetRepo.create({
-      userId: user.id,
-      codeHash: hashedCode,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 10), // 10 mins
-    });
-
-    await this.passwordResetRepo.save(resetEntry);
 
     await this.resetPasswordService.sendOtpEmail(user.email, code);
 
@@ -279,25 +246,14 @@ export class AuthService {
       throw new BadRequestException('Invalid request');
     }
 
-    const reset = await this.passwordResetRepo.findOne({
-      where: { userId: user.id },
-    });
-    if (!reset) {
+    // Validate code through reset password service
+    const isValid = await this.resetPasswordService.validateCode(email, code);
+    if (!isValid) {
       throw new BadRequestException('Invalid or expired code');
-    }
-    if (reset.expiresAt < new Date()) {
-      throw new BadRequestException('Invalid or expired code');
-    }
-
-    const isMatch = await bcrypt.compare(code, reset.codeHash);
-    if (!isMatch) {
-      throw new BadRequestException('Invalid code');
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
     await this.userService.save(user);
-
-    await this.passwordResetRepo.delete({ id: reset.id });
 
     return { message: 'Password reset successful' };
   }
