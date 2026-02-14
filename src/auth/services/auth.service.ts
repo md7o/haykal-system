@@ -19,7 +19,6 @@ import type {
   UserBase,
   RequestWithDevice,
 } from '../interfaces/auth-types';
-import e from 'express';
 
 @Injectable()
 export class AuthService {
@@ -61,7 +60,7 @@ export class AuthService {
     const decoded = this.jwtService.decode(accessToken) as {
       exp?: number;
     } | null;
-    const accessTokenExpiry = decoded?.exp ? decoded.exp * 1000 : Date.now() + 15 * 60 * 1000; //15m
+    const accessTokenExpiry = decoded?.exp ? decoded.exp * 1000 : Date.now() + 15 * 60 * 1000; //15 minutes
 
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
@@ -184,15 +183,14 @@ export class AuthService {
       const user = await this.userService.findOneById(payload.sub);
       if (!user) throw new UnauthorizedException('User not found');
 
-      // === Rotation only after pass the access token expiry ===
-
       // Generate new tokens and rotate refresh token
       const { accessToken, refreshToken: newRefresh, accessTokenExpiry } = this.generateTokens(user);
 
       // Delete old refresh token (rotation)
       await this.refreshTokenService.deleteRefreshToken(payload.sub, refreshToken);
 
-      await this.refreshTokenService.createRefreshToken(user.id, newRefresh);
+      // Save new refresh token with access token expiry (consistent with signIn)
+      await this.refreshTokenService.createRefreshToken(user.id, newRefresh, accessTokenExpiry);
 
       return { accessToken, refreshToken: newRefresh, accessTokenExpiry };
     } catch {

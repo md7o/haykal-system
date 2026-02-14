@@ -1,5 +1,5 @@
 import { IsEnum, IsOptional, IsUUID } from 'class-validator';
-import { MembershipType } from 'src/common/enums/membership-type';
+import { MembershipType } from 'src/common/enums/community-enums/membership-type';
 
 export class CreateMembershipDto {
   @IsUUID()

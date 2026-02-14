@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsUrl, IsEnum } from 'class-validator';
-import { CommunityType } from '../../../common/enums/community-type';
+import { CommunityType } from '../../../common/enums/community-enums/community-type';
 
 export class CreateCommunityDataDto {
   @IsOptional()

@@ -12,7 +12,7 @@ import {
 } from 'typeorm';
 import { CommunityItem } from '../../community-items/entities/community-items.entity';
 import { User } from '../../../user/entities/user.entity';
-import { MembershipType } from 'src/common/enums/membership-type';
+import { MembershipType } from 'src/common/enums/community-enums/membership-type';
 import { CommunityData } from '../../community-data/entities/community-data.entity';
 
 @Entity('membership')

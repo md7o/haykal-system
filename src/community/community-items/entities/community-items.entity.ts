@@ -12,7 +12,7 @@ import {
 import { Membership } from '../../membership/entities/membership.entity';
 import { Like } from '../../user-activity/entities/like.entity';
 import { Comment } from '../../user-activity/entities/comment.entity';
-import { CommunityItemType } from '../../../common/enums/community-item-type';
+import { CommunityItemType } from '../../../common/enums/community-enums/community-item-type';
 import type { CommunityItemMetadata } from '../../../common/interfaces/community-item-metadata.interface';
 import { CommunityData } from 'src/community/community-data/entities/community-data.entity';
 

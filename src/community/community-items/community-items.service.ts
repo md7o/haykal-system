@@ -4,10 +4,10 @@ import { In, Repository } from 'typeorm';
 import { CommunityItem } from './entities/community-items.entity';
 import { UpdateCommunityItemsDto } from './dto/update-community-items.dto';
 import { MembershipService } from '../membership/membership.service';
-import { MembershipType } from '../../common/enums/membership-type';
+import { MembershipType } from '../../common/enums/community-enums/membership-type';
 import { Like } from '../user-activity/entities/like.entity';
 import { CreateCommunityItemsDto } from './dto/create-community-items.dto';
-import { CommunityItemType } from '../../common/enums/community-item-type';
+import { CommunityItemType } from '../../common/enums/community-enums/community-item-type';
 
 @Injectable()
 export class CommunityItemsService {

@@ -76,7 +76,6 @@ export class AuthController {
     return res.json({ userId, email, username, role, accessToken, accessTokenExpiry });
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('logout')
   logout(@Body('userId') userId: string, @Res({ passthrough: true }) res: Response) {
     // Clear cookie using the same attributes to ensure deletion

@@ -1,7 +1,7 @@
 import { CommunityItemsService } from './community-items.service';
 import { CreateCommunityItemsDto } from './dto/create-community-items.dto';
-import { CommunityItemType } from '../../common/enums/community-item-type';
-import { MembershipType } from '../../common/enums/membership-type';
+import { CommunityItemType } from '../../common/enums/community-enums/community-item-type';
+import { MembershipType } from '../../common/enums/community-enums/membership-type';
 
 describe('CommunityItemsService', () => {
   let service: CommunityItemsService;

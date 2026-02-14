@@ -54,7 +54,8 @@
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.26",
     "ua-parser-js": "^2.0.4",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

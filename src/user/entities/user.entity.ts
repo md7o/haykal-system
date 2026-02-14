@@ -1,7 +1,8 @@
 import { UserRole } from '../../common/enums/user-role';
 import { Column, Entity, PrimaryGeneratedColumn, OneToOne, OneToMany } from 'typeorm';
-import { Portfolio } from '../../portfolio-builder-tool/portfolio/entities/portfolio.entity';
+import { Portfolio } from '../../portfolio-tool/portfolio/entities/portfolio.entity';
 import { Membership } from '../../community/membership/entities/membership.entity';
+import { Idea } from '../../ai-studio/entities/idea.entity';
 
 @Entity('user')
 export class User {
@@ -48,4 +49,7 @@ export class User {
 
   @OneToMany(() => Membership, (membership) => membership.user)
   memberships: Membership[];
+
+  @OneToMany(() => Idea, (idea) => idea.user)
+  ideas: Idea[];
 }

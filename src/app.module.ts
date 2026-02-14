@@ -7,11 +7,12 @@ import { createTypeOrmOptions } from './config/database.config';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { DeviceInfoMiddleware } from './auth/middleware/device-info.middleware';
-import { PortfolioModule } from './portfolio-builder-tool/portfolio/portfolio.module';
-import { PagesModule } from './portfolio-builder-tool/pages/pages.module';
-import { SectionsModule } from './portfolio-builder-tool/sections/sections.module';
-import { AssetsModule } from './portfolio-builder-tool/assets/assets.module';
+import { PortfolioModule } from './portfolio-tool/portfolio/portfolio.module';
+import { PagesModule } from './portfolio-tool/pages/pages.module';
+import { SectionsModule } from './portfolio-tool/sections/sections.module';
+import { AssetsModule } from './portfolio-tool/assets/assets.module';
 import { CommunityModule } from './community/community.module';
+import { AiStudioModule } from './ai-studio/ai-studio.module';
 import { LoggerModule } from 'nestjs-pino';
 import { RequestCountService } from './common/request-counter/services/request-count.service';
 import { RequestCountMiddleware } from './common/request-counter/middleware/request-count.middleware';
@@ -27,7 +28,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
       throttlers: [
         {
           ttl: 60000, // 1 minute
-          limit: 50,
+          limit: 100,
         },
       ],
     }),
@@ -65,6 +66,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     PagesModule,
     SectionsModule,
     AssetsModule,
+    AiStudioModule,
     CommunityModule,
   ],
   controllers: [MetricsController],

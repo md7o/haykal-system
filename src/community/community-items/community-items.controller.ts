@@ -6,7 +6,7 @@ import { JwtAuthGuard } from 'src/auth/guards/auth.guard';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import type { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
 import { CreateCommunityItemsDto } from './dto/create-community-items.dto';
-import { CommunityItemType } from 'src/common/enums/community-item-type';
+import { CommunityItemType } from 'src/common/enums/community-enums/community-item-type';
 
 @ApiTags('Community - CommunityItems')
 @ApiBearerAuth()

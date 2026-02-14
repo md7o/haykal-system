@@ -1,16 +1,6 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  OneToMany,
-  BeforeInsert,
-  BeforeUpdate,
-  CreateDateColumn,
-  UpdateDateColumn,
-} from 'typeorm';
-import { generateSlug } from '../../../common/utils/slug.helper';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Membership } from '../../membership/entities/membership.entity';
-import { CommunityType } from '../../../common/enums/community-type';
+import { CommunityType } from '../../../common/enums/community-enums/community-type';
 import { CommunityItem } from 'src/community/community-items/entities/community-items.entity';
 
 @Entity('community_data')
