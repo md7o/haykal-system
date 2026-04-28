@@ -109,13 +109,16 @@ export class AiStudioService {
     return item;
   }
 
-  // async update(id: string, dto: UpdateAiStudioDto) {
-  //   await this.repo.update(id, dto as any);
-  //   return this.findOne(id);
-  // }
+  async update(id: string, dto: UpdateAiStudioDto) {
+    await this.ideaRepository.update(id, dto);
+    return this.findOne(id);
+  }
 
-  // async remove(id: string) {
-  //   const res = await this.repo.delete(id);
-  //   return { affected: res.affected ?? 0 };
-  // }
+  async remove(id: string) {
+    const item = await this.findOne(id);
+    if (!item) throw new NotFoundException(`AiStudio ${id} not found`);
+
+    await this.ideaRepository.remove(item);
+    return item;
+  }
 }

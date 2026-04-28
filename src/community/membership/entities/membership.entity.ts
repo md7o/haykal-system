@@ -26,6 +26,9 @@ export class Membership {
   @Column({ type: 'varchar', nullable: true })
   authorName: string;
 
+  @Column({ name: 'SubscriptionExpiration', type: 'timestamp', nullable: true })
+  subscriptionExpiration: Date;
+
   @Index('idx_user_status_user_id')
   @Column({ type: 'uuid' })
   userId: string;

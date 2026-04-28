@@ -1,3 +1,5 @@
 - AppModule > table synchronize
 - main > CORS
 - VerificationService and MailService > nodemailer.createTransport
+
+- redis-cli monitor

@@ -1,12 +1,9 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UserService {
@@ -40,19 +37,17 @@ export class UserService {
     return await this.usersReposetory.findOne({ where: { email } });
   }
 
-  async findByUsernameOrEmail(
-    username: string,
-    email: string,
-  ): Promise<User | null> {
+  async findByUsernameOrEmail(username: string, email: string): Promise<User | null> {
     return await this.usersReposetory.findOne({
       where: [{ username }, { email }],
     });
   }
 
-  async update(id: string): Promise<User> {
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findOneById(id);
     if (!user) throw new NotFoundException(`User with ID ${id} not found`);
 
+    Object.assign(user, updateUserDto);
     return this.usersReposetory.save(user);
   }
 

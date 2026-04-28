@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsOptional, IsEnum } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ColorTheme } from '../../../common/enums/portfolio-enums/color-theme';
 import { FontTheme } from '../../../common/enums/portfolio-enums/font-theme';

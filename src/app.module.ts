@@ -14,9 +14,7 @@ import { AssetsModule } from './portfolio-tool/assets/assets.module';
 import { CommunityModule } from './community/community.module';
 import { AiStudioModule } from './ai-studio/ai-studio.module';
 import { LoggerModule } from 'nestjs-pino';
-import { RequestCountService } from './common/request-counter/services/request-count.service';
-import { RequestCountMiddleware } from './common/request-counter/middleware/request-count.middleware';
-import { MetricsController } from './common/request-counter/controllers/metrics.controller';
+
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 @Module({
@@ -45,7 +43,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
                 options: {
                   colorize: true,
                   singleLine: true,
-                  ignore: 'pid,hostname,req.headers,req.remoteAddress,req.remotePort',
+                  ignore: 'pid,hostname,req,res',
                   messageFormat: '{req.method} {req.url} {res.statusCode} - {responseTime}ms',
                 },
               }
@@ -69,10 +67,10 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     AiStudioModule,
     CommunityModule,
   ],
-  controllers: [MetricsController],
+  // controllers: [MetricsController],
   providers: [
-    RequestCountService,
-    RequestCountMiddleware,
+    // RequestCountService,
+    // RequestCountMiddleware,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
@@ -85,6 +83,6 @@ export class AppModule implements NestModule {
     consumer.apply(DeviceInfoMiddleware).forRoutes('auth/signin');
 
     // Count every incoming HTTP request and expose the count via a header
-    consumer.apply(RequestCountMiddleware).forRoutes('*');
+    // consumer.apply(RequestCountMiddleware).forRoutes('*');
   }
 }

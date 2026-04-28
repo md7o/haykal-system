@@ -7,5 +7,5 @@ export class CreateAiStudioDto {
 
   @IsOptional()
   @IsObject()
-  answersData?: Record<string, unknown>;
+  answersData?: Record<string, any>;
 }

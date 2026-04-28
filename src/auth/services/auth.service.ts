@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { redis } from 'src/common/redis/redis.provider';
 
 import { UserService } from 'src/user/user.service';
 import { UserRole } from 'src/common/enums/user-role';
@@ -29,7 +30,11 @@ export class AuthService {
     private readonly verificationService: VerificationService,
     private readonly jwtService: JwtService,
     private readonly refreshTokenService: RefreshTokenService,
-  ) {}
+  ) {
+    this.redis = redis;
+  }
+
+  private redis = redis;
 
   // -------------------------
   // Validate user credentials
@@ -210,8 +215,22 @@ export class AuthService {
   // Get current user info
   // -------------------------
   async me(userId: string): Promise<UserBase> {
-    const user = await this.userService.findOneById(userId);
-    if (!user) throw new UnauthorizedException('User not found');
+    const cacheKey = `user:${userId}:profile`;
+    const cachedUser = await this.redis.get(cacheKey);
+
+    let user: User;
+    if (cachedUser) {
+      user = JSON.parse(cachedUser);
+    } else {
+      const foundUser = await this.userService.findOneById(userId);
+      if (!foundUser) throw new UnauthorizedException('User not found');
+      user = foundUser;
+      // Cache user profile for 1 hour
+      await this.redis.set(cacheKey, JSON.stringify(user), 'EX', 60 * 60);
+    }
+
+    // Update last active timestamp (doesn't need to be cached)
+    await this.redis.set(`user:${userId}:lastActive`, Date.now(), 'EX', 7 * 24 * 60 * 60); // 7 days
 
     return {
       userId: user.id,

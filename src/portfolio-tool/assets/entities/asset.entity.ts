@@ -18,7 +18,7 @@ export class Asset {
   @Column({ type: 'enum', enum: ColorTheme, default: ColorTheme.BLUE })
   colorTheme: ColorTheme;
 
-  @Column({ type: 'enum', enum: FontTheme, default: FontTheme.SANS_SERIF })
+  @Column({ type: 'enum', enum: FontTheme, default: FontTheme.CAIRO })
   fontTheme: FontTheme;
 
   @Column({

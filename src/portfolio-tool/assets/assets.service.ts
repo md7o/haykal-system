@@ -45,7 +45,7 @@ export class AssetsService {
     const asset = this.assetRepository.create({
       portfolioId,
       colorTheme: createAssetDto.colorTheme || ColorTheme.BLUE,
-      fontTheme: createAssetDto.fontTheme || FontTheme.SANS_SERIF,
+      fontTheme: createAssetDto.fontTheme || FontTheme.CAIRO,
     });
 
     const saved = await this.assetRepository.save(asset);

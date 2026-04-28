@@ -4,6 +4,7 @@ import { CreateAiStudioDto } from './dto/create-ai-studio.dto';
 import { JwtAuthGuard } from '../auth/guards/auth.guard';
 import type { AuthenticatedRequest } from '../common/interfaces/authenticated-request.interface';
 import { Idea } from './entities/idea.entity';
+import { UpdateAiStudioDto } from './dto/update-ai-studio.dto';
 
 @Controller('ai-studio')
 export class AiStudioController {
@@ -35,13 +36,13 @@ export class AiStudioController {
     return this.aiStudioService.findOne(id);
   }
 
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateDto: UpdateAiStudioDto) {
-  //   return this.aiStudioService.update(id, updateDto);
-  // }
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateDto: UpdateAiStudioDto) {
+    return this.aiStudioService.update(id, updateDto);
+  }
 
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.aiStudioService.remove(id);
-  // }
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.aiStudioService.remove(id);
+  }
 }
